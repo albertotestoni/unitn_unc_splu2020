@@ -10,6 +10,7 @@ from nltk.tokenize import TweetTokenizer
 from utils.image_utils import get_spatial_feat
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
+from lxmert.src.lxrt.entry import convert_sents_to_features
 import collections
 
 
@@ -23,6 +24,13 @@ class LXMERTOracleDataset(Dataset):
         self.data_dir = data_dir
         self.split = split
         self.history = history
+
+        # Using the bert tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(
+            "bert-base-uncased",
+            do_lower_case=True
+        )
+
         # where to save/load preprocessed data
         if self.history:
             self.data_file_name = 'oracle_' + split + '_history_data.json'
@@ -126,6 +134,24 @@ class LXMERTOracleDataset(Dataset):
                 "history_raw": self.oracle_data[idx]["history_raw"],
                 "unnormalized_target_bbox": np.asarray(self.oracle_data[idx]["target_bbox"], dtype=np.float32)
                 }
+
+        # Extract sentence features so DataParallel can split into batches
+        # properly
+        # TODO make the second parameter of convert_sents_to_features not
+        # hardcoded
+        train_features = convert_sents_to_features([res_dict['history_raw']],
+                200, self.tokenizer)
+        # As we're only processing one sentence at a time, we have to take the
+        # element 0 of the train_features array
+        input_ids = train_features[0].input_ids
+        input_mask = train_features[0].input_mask
+        segment_ids = train_features[0].segment_ids
+
+        # Return the sentences tokenized
+        res_dict['train_features'] = dict()
+        res_dict['train_features']['input_ids'] = np.asarray(input_ids)
+        res_dict['train_features']['input_mask'] = np.asarray(input_mask)
+        res_dict['train_features']['segment_ids'] = np.asarray(segment_ids)
 
         res_dict['FasterRCNN'] = dict()
 
