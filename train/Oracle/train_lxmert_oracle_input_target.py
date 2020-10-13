@@ -1,12 +1,12 @@
 import argparse
 import datetime
 import json
+import os
 import sys
 from collections import OrderedDict
 from time import time
 
 import numpy as np
-import os
 import torch
 import torch.nn as nn
 import tqdm
@@ -33,7 +33,7 @@ def calculate_accuracy_oracle(predictions, targets):
         targets = targets.data
 
     predicted_classes = predictions.topk(1)[1]
-    accuracy = torch.eq(predicted_classes.squeeze(1), targets).sum().item()/targets.size(0)
+    accuracy = torch.eq(predicted_classes.squeeze(1), targets).sum().item() / targets.size(0)
     return accuracy
 
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     torch.manual_seed(exp_config['seed'])
     if exp_config['use_cuda']:
         torch.cuda.manual_seed_all(exp_config['seed'])
-        
+
     if exp_config['logging']:
         exp_config['name'] = args.exp_name
         if not os.path.exists(exp_config["tb_logdir"] + "oracle_" + exp_config["name"]):
@@ -69,13 +69,13 @@ if __name__ == '__main__':
         valid_batch_out = 0
 
     # Hyperparamters
-    data_paths          = config['data_paths']
-    optimizer_config    = config['optimizer']
-    embedding_config    = config['embeddings']
-    lstm_config         = config['lstm']
-    mlp_config          = config['mlp']
-    dataset_config      = config['dataset']
-    inputs_config       = config['inputs']
+    data_paths = config['data_paths']
+    optimizer_config = config['optimizer']
+    embedding_config = config['embeddings']
+    lstm_config = config['lstm']
+    mlp_config = config['mlp']
+    dataset_config = config['dataset']
+    inputs_config = config['inputs']
 
     print("Loading MSCOCO bottomup index from: {}".format(data_paths["FasterRCNN"]["mscoco_bottomup_index"]))
     with open(data_paths["FasterRCNN"]["mscoco_bottomup_index"]) as in_file:
@@ -89,6 +89,7 @@ if __name__ == '__main__':
     mscoco_bottomup_features = None
     if args.preloaded:
         import sharearray
+
         print("Loading preloaded MS-COCO Bottom-Up features")
         mscoco_bottomup_features = sharearray.cache("mscoco_vectorized_features", lambda: None)
         mscoco_bottomup_features = np.array(mscoco_bottomup_features)
@@ -118,13 +119,8 @@ if __name__ == '__main__':
             data_file=data_paths['train_file'],
             min_occ=dataset_config['min_occ'])
 
-    print("Bert tokenizer or standard vocab?")
-
     with open(os.path.join(args.data_dir, data_paths['vocab_file'])) as file:
         vocab = json.load(file)
-
-    # with open('./data/vocab_bert_tok.json') as file:
-    #     vocab = json.load(file)
 
     word2i = vocab['word2i']
     i2word = vocab['i2word']
@@ -132,23 +128,18 @@ if __name__ == '__main__':
 
     # Init Model, Loss Function and Optimizer
     model = LXMERTOracleInputTarget(
-        no_words            = vocab_size,
-        no_words_feat       = embedding_config['no_words_feat'],
-        no_categories       = embedding_config['no_categories'],
-        no_category_feat    = embedding_config['no_category_feat'],
-        no_hidden_encoder   = lstm_config['no_hidden_encoder'],
-        mlp_layer_sizes     = mlp_config['layer_sizes'],
-        no_visual_feat      = inputs_config['no_visual_feat'],
-        no_crop_feat        = inputs_config['no_crop_feat'],
-        dropout             = lstm_config['dropout'],
-        inputs_config       = inputs_config,
-        scale_visual_to     = inputs_config['scale_visual_to'],
-        lxmert_encoder_args = inputs_config["LXRTEncoder"]
+        no_categories=embedding_config['no_categories'],
+        no_category_feat=embedding_config['no_category_feat'],
+        no_hidden_encoder=lstm_config['no_hidden_encoder'],
+        mlp_layer_sizes=mlp_config['layer_sizes'],
+        no_visual_feat=inputs_config['no_visual_feat'],
+        no_crop_feat=inputs_config['no_crop_feat'],
+        inputs_config=inputs_config,
+        scale_visual_to=inputs_config['scale_visual_to'],
+        lxmert_encoder_args=inputs_config["LXRTEncoder"]
     )
 
-    # loss_function = nn.NLLLoss()
     loss_function = nn.CrossEntropyLoss()
-    # optimizer = optim.Adam(model.parameters(), optimizer_config['lr'])
 
     if exp_config['use_cuda']:
         model.cuda()
@@ -160,39 +151,38 @@ if __name__ == '__main__':
         writer.add_text("Model", str(model))
 
     dataset_train = LXMERTOracleDataset(
-        data_dir            = args.data_dir,
-        data_file           = data_paths['train_file'],
-        split               = 'train',
-        visual_feat_file    = data_paths[args.img_feat]['image_features'],
-        visual_feat_mapping_file = data_paths[exp_config['img_feat']]['img2id'],
-        visual_feat_crop_file = data_paths[args.img_feat]['crop_features'],
-        visual_feat_crop_mapping_file = data_paths[exp_config['img_feat']]['crop2id'],
-        max_src_length      = dataset_config['max_src_length'],
-        hdf5_visual_feat    = 'train_img_features',
-        hdf5_crop_feat      = 'crop_features',
-        imgid2fasterRCNNfeatures = imgid2fasterRCNNfeatures,
-        history             = dataset_config['history'],
-        new_oracle_data     = True,
-        successful_only     = dataset_config['successful_only'],
+        data_dir=args.data_dir,
+        data_file=data_paths['train_file'],
+        split='train',
+        visual_feat_file=data_paths[args.img_feat]['image_features'],
+        visual_feat_mapping_file=data_paths[exp_config['img_feat']]['img2id'],
+        visual_feat_crop_file=data_paths[args.img_feat]['crop_features'],
+        visual_feat_crop_mapping_file=data_paths[exp_config['img_feat']]['crop2id'],
+        max_src_length=dataset_config['max_src_length'],
+        hdf5_visual_feat='train_img_features',
+        hdf5_crop_feat='crop_features',
+        imgid2fasterRCNNfeatures=imgid2fasterRCNNfeatures,
+        history=dataset_config['history'],
+        new_oracle_data=True,
+        successful_only=dataset_config['successful_only'],
         load_crops=True,
         only_location=False
     )
 
     dataset_validation = LXMERTOracleDataset(
-        data_dir            = args.data_dir,
-        data_file           = data_paths['val_file'],
-        split               = 'val',
-        visual_feat_file    = data_paths[args.img_feat]['image_features'],
-        visual_feat_mapping_file = data_paths[exp_config['img_feat']]['img2id'],
-        visual_feat_crop_file = data_paths[args.img_feat]['crop_features'],
-        visual_feat_crop_mapping_file = data_paths[exp_config['img_feat']]['crop2id'],
-        max_src_length      = dataset_config['max_src_length'],
-        hdf5_visual_feat    = 'val_img_features',
-        hdf5_crop_feat      = 'crop_features',
-        imgid2fasterRCNNfeatures = imgid2fasterRCNNfeatures,
-        history             = dataset_config['history'],
-        new_oracle_data     = True, #dataset_config['new_oracle_data'],
-        successful_only     = dataset_config['successful_only'],
+        data_dir=args.data_dir,
+        data_file=data_paths['val_file'],
+        split='val',
+        visual_feat_file=data_paths[args.img_feat]['image_features'],
+        visual_feat_mapping_file=data_paths[exp_config['img_feat']]['img2id'],
+        visual_feat_crop_file=data_paths[args.img_feat]['crop_features'],
+        max_src_length=dataset_config['max_src_length'],
+        hdf5_visual_feat='val_img_features',
+        hdf5_crop_feat='crop_features',
+        imgid2fasterRCNNfeatures=imgid2fasterRCNNfeatures,
+        history=dataset_config['history'],
+        new_oracle_data=True,
+        successful_only=dataset_config['successful_only'],
         load_crops=True,
         only_location=False,
     )
@@ -205,7 +195,6 @@ if __name__ == '__main__':
     optimizer = BertAdam(model.parameters(), lr=optimizer_config['lr'], warmup=0.1, t_total=num_total_batches)
 
     for epoch in range(optimizer_config['no_epochs']):
-        # Init logging variables
         start = time()
         loss, train_accuracy, val_accuracy = 0, 0, 0
 
@@ -235,17 +224,13 @@ if __name__ == '__main__':
 
             stream = tqdm.tqdm(enumerate(dataloader), total=len(dataloader), ncols=100)
             for i_batch, sample in stream:
-                # Get Batch
                 questions, answers, crop_features, visual_features, spatials, obj_categories, lengths = \
-                    sample['question'], sample['answer'], sample['crop_features'], sample['img_features'], sample['spatial'], sample['obj_cat'], sample['length']
+                    sample['question'], sample['answer'], sample['crop_features'], sample['img_features'], sample[
+                        'spatial'], sample['obj_cat'], sample['length']
 
                 # Forward pass
-                pred_answer = model(Variable(questions),
-                    Variable(obj_categories),
-                    Variable(spatials),
+                pred_answer = model(
                     Variable(crop_features),
-                    Variable(visual_features),
-                    Variable(lengths),
                     sample["history_raw"],
                     sample['FasterRCNN']['features'],
                     sample['FasterRCNN']['boxes'],
@@ -253,16 +238,17 @@ if __name__ == '__main__':
                 )
 
                 # Calculate Loss
-                loss = loss_function(pred_answer, Variable(answers).cuda() if exp_config['use_cuda'] else Variable(answers)).unsqueeze(0)
+                loss = loss_function(pred_answer, Variable(answers).cuda() if exp_config['use_cuda'] else Variable(
+                    answers)).unsqueeze(0)
 
                 # Calculate Accuracy
-                accuracy.append(calculate_accuracy_oracle(pred_answer, answers.cuda() if exp_config['use_cuda'] else answers))
+                accuracy.append(
+                    calculate_accuracy_oracle(pred_answer, answers.cuda() if exp_config['use_cuda'] else answers))
 
                 stream.set_description("Train accuracy: {}".format(np.round(np.mean(accuracy), 2)))
-                stream.refresh()  # to show immediately the update
+                stream.refresh()
 
                 if split == 'train':
-                    # Backprop and parameter update
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
@@ -282,35 +268,35 @@ if __name__ == '__main__':
                         for name, param in model.named_parameters():
                             writer.add_histogram("OracleParams/Oracle_" + name, param.data, epoch, bins='auto')
 
-                        if epoch > 0 and epoch%5 == 0:
-                            labels = list(OrderedDict(sorted({int(k):v for k,v in i2word.items()}.items())).values())
-                            writer.add_embedding(model.module.word_embeddings.weight.data, metadata=labels, tag='oracle word embedding', global_step=int(epoch/5))
+                        if epoch > 0 and epoch % 5 == 0:
+                            labels = list(OrderedDict(sorted({int(k): v for k, v in i2word.items()}.items())).values())
+                            writer.add_embedding(model.module.word_embeddings.weight.data, metadata=labels,
+                                                 tag='oracle word embedding', global_step=int(epoch / 5))
 
                         if epoch == 0:
                             writer.add_graph(model, pred_answer)
-
 
                 elif split == 'val' and exp_config['logging']:
                     writer.add_scalar("Validation/Batch Accurarcy", accuracy[-1], valid_batch_out)
                     writer.add_scalar("Validation/Batch Loss", loss.data[0], valid_batch_out)
                     valid_batch_out += 1
 
-            # bookkeeping
             if split == 'train':
                 train_accuracy = np.mean(accuracy)
             elif split == 'val':
                 val_accuracy = np.mean(accuracy)
 
-
         if exp_config['save_models']:
             if not os.path.exists(exp_config['save_models_path']):
                 os.makedirs(exp_config['save_models_path'])
-            torch.save(model.state_dict(), os.path.join(exp_config['save_models_path'], ''.join(['oracle', args.bin_name, exp_config['ts'], str(epoch)])))
+            torch.save(
+                model.state_dict(),
+                os.path.join(exp_config['save_models_path'], ''.join(['oracle', args.bin_name, exp_config['ts'], str(epoch)]))
+            )
             print("saving ", os.path.join(exp_config['save_models_path'], ''.join(['oracle', args.bin_name, exp_config['ts'], str(epoch)])))
 
-
         print("%s, Epoch %03d, Time taken %.2f, Training-Loss %.5f, Validation-Loss %.5f, Training Accuracy %.5f, Validation Accuracy %.5f"
-        %(args.exp_name, epoch, time()-start, torch.mean(train_loss), torch.mean(val_loss), train_accuracy, val_accuracy))
+            % (args.exp_name, epoch, time() - start, torch.mean(train_loss), torch.mean(val_loss), train_accuracy, val_accuracy))
 
         if exp_config['logging']:
             writer.add_scalar("Training/Epoch Loss", torch.mean(train_loss), epoch)

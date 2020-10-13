@@ -1,21 +1,20 @@
-import os
-import json
-import h5py
+import collections
+import copy
 import gzip
 import io
-import copy
+import json
+import os
+
+import h5py
 import numpy as np
-import torch
 from nltk.tokenize import TweetTokenizer
-from utils.image_utils import get_spatial_feat
 from torch.utils.data import Dataset
-from transformers import BertTokenizer
-import collections
+from utils.image_utils import get_spatial_feat
 
 
 class LXMERTOracleDataset(Dataset):
     def __init__(self, data_dir, data_file, split, visual_feat_file, visual_feat_mapping_file,
-                 visual_feat_crop_file, visual_feat_crop_mapping_file, max_src_length, hdf5_visual_feat,
+                 visual_feat_crop_file, max_src_length, hdf5_visual_feat,
                  hdf5_crop_feat,
                  imgid2fasterRCNNfeatures,
                  history = False, new_oracle_data=False, successful_only=True, min_occ=3, load_crops=False, bert_tok=False, only_location=False):
@@ -55,15 +54,8 @@ class LXMERTOracleDataset(Dataset):
 
         self.vf = h5py.File(self.visual_feat_file, 'r')[self.hdf5_visual_feat]
         if self.load_crops:
-            # self.cf = np.asarray(h5py.File(self.visual_feat_crop_file, 'r')[self.hdf5_crop_feat])
-            #self.cf = h5py.File('./data/target_objects_features_fast.h5', 'r')['objects_features']
             self.cf = h5py.File('./data/target_objects_features_all.h5', 'r')['objects_features']
 
-            # with open(os.path.join(data_dir, visual_feat_crop_mapping_file), 'r') as file_c:
-            #     self.visual_feat_crop_mapping_file = json.load(file_c)
-            # self.visual_feat_crop_mapping_file = self.visual_feat_crop_mapping_file['crops_features2id']
-
-            #with open('./data/target_objects_features_index_fast.json', 'r') as file_c:
             with open('./data/target_objects_features_index_all.json', 'r') as file_c:
                 self.visual_feat_crop_mapping_file = json.load(file_c)
 
@@ -229,7 +221,6 @@ class LXMERTOracleDataset(Dataset):
         return oracle_data
 
     def new_oracle_data_location(self):
-
         print("Creating New " + self.data_file_name + " File.")
 
         with open("data/word_annotation") as f:
@@ -268,9 +259,6 @@ class LXMERTOracleDataset(Dataset):
                    'No': 0,
                    'N/A': 2}
 
-        reverse_ans = {1: 0, 0: 1, 2: 2}
-        reverse_token = {64: 26, 26: 64, 37: 172, 172: 37,16:137,137:16}
-        list_rev_tok = [64,26,37,172,16,137]
         original_data = 0
         generated_data = 0
 
@@ -338,27 +326,6 @@ class LXMERTOracleDataset(Dataset):
 
                     _id += 1
                     original_data+= 1
-
-                    # if self.split == 'train' and any(i in list_rev_tok for i in question) and a_token==1:
-                    #     new_question = []
-                    #     for tok in question:
-                    #         if tok in reverse_token:
-                    #             new_question.append(reverse_token[tok])
-                    #         else:
-                    #             new_question.append(tok)
-                    #     new_a_token = reverse_ans[a_token]
-                    #
-                    #     oracle_data[_id] = dict()
-                    #     oracle_data[_id]['question'] = new_question
-                    #     oracle_data[_id]['length'] = question_length
-                    #     oracle_data[_id]['answer'] = new_a_token
-                    #     oracle_data[_id]['image_file'] = game['image']['file_name']
-                    #     oracle_data[_id]['spatial'] = spatial
-                    #     oracle_data[_id]['game_id'] = str(game['id'])
-                    #     oracle_data[_id]['obj_cat'] = object_category
-                    #     _id += 1
-                    #     generated_data += 1
-
 
         oracle_data_path = os.path.join(self.data_dir, self.data_file_name)
         with io.open(oracle_data_path, 'wb') as f_out:
