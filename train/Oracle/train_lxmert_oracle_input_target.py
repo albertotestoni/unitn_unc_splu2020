@@ -163,7 +163,7 @@ if __name__ == '__main__':
         hdf5_crop_feat='crop_features',
         imgid2fasterRCNNfeatures=imgid2fasterRCNNfeatures,
         history=dataset_config['history'],
-        new_oracle_data=True,
+        new_oracle_data=dataset_config['new_oracle_data'],
         successful_only=dataset_config['successful_only'],
         load_crops=True,
         only_location=False
@@ -181,7 +181,7 @@ if __name__ == '__main__':
         hdf5_crop_feat='crop_features',
         imgid2fasterRCNNfeatures=imgid2fasterRCNNfeatures,
         history=dataset_config['history'],
-        new_oracle_data=True,
+        new_oracle_data=dataset_config['new_oracle_data'],
         successful_only=dataset_config['successful_only'],
         load_crops=True,
         only_location=False,
@@ -224,9 +224,9 @@ if __name__ == '__main__':
 
             stream = tqdm.tqdm(enumerate(dataloader), total=len(dataloader), ncols=100)
             for i_batch, sample in stream:
-                questions, answers, crop_features, visual_features, spatials, obj_categories, lengths = \
-                    sample['question'], sample['answer'], sample['crop_features'], sample['img_features'], sample[
-                        'spatial'], sample['obj_cat'], sample['length']
+                # Get Batch
+                questions, answers, crop_features, visual_features, spatials, obj_categories, lengths, train_features = \
+                        sample['question'], sample['answer'], sample['crop_features'], sample['img_features'], sample['spatial'], sample['obj_cat'], sample['length'], sample['train_features']
 
                 # Forward pass
                 pred_answer = model(
@@ -234,7 +234,10 @@ if __name__ == '__main__':
                     sample["history_raw"],
                     sample['FasterRCNN']['features'],
                     sample['FasterRCNN']['boxes'],
-                    sample["target_bbox"]
+                    sample["target_bbox"],
+                    Variable(sample['train_features']['input_ids']),
+                    Variable(sample['train_features']['input_mask']),
+                    Variable(sample['train_features']['segment_ids'])
                 )
 
                 # Calculate Loss

@@ -112,13 +112,21 @@ class LXRTEncoder(nn.Module):
         return 768
 
     def forward(self, sents, feats, visual_attention_mask=None):
-        train_features = convert_sents_to_features(
-            sents, self.max_seq_length, self.tokenizer)
 
-        input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long).cuda()
-        input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long).cuda()
-        segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long).cuda()
+        # Moved this processing to LXMERTOracleDataset
+        # ----------------------------------------------------------------------
+        #train_features = convert_sents_to_features(
+        #    sents, self.max_seq_length, self.tokenizer)
 
+        #input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long).cuda()
+        #input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long).cuda()
+        #segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long).cuda()
+        # ----------------------------------------------------------------------
+
+        # Sents will now carry the inputs from the dataloader as a tuple
+        input_ids = sents[0]
+        input_mask = sents[1]
+        segment_ids = sents[2]
         output = self.model(input_ids, segment_ids, input_mask,
                             visual_feats=feats,
                             visual_attention_mask=visual_attention_mask)
