@@ -17,11 +17,13 @@ from lxmert.src.lxrt.entry import convert_sents_to_features
 
 
 class LXMERTOracleDataset(Dataset):
-    def __init__(self, data_dir, data_file, split, visual_feat_file, visual_feat_mapping_file,
-                 visual_feat_crop_file, max_src_length, hdf5_visual_feat,
-                 hdf5_crop_feat,
-                 imgid2fasterRCNNfeatures,
-                 history = False, new_oracle_data=False, successful_only=True, min_occ=3, load_crops=False, bert_tok=False, only_location=False):
+    def __init__(self, data_dir, data_file, split, visual_feat_file,
+                 visual_feat_mapping_file, visual_feat_crop_file,
+                 max_src_length,
+                 hdf5_visual_feat, hdf5_crop_feat, imgid2fasterRCNNfeatures,
+                 history = False, new_oracle_data=False, successful_only=True,
+                 min_occ=3, load_crops=False, bert_tok=False,
+                 only_location=False):
 
         self.data_dir = data_dir
         self.split = split

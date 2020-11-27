@@ -56,7 +56,7 @@ class LXMERTOracleInputTarget(nn.Module):
         else:
             print("Initializing LXMERT model from scratch...")
 
-    def forward(self, fasterrcnn_features, fasterrcnn_boxes, target_bbox, 
+    def forward(self, crop_features, fasterrcnn_features, fasterrcnn_boxes, target_bbox, 
                 input_ids, input_mask, segment_ids):
 
         fasterrcnn_features[:, -1] = crop_features

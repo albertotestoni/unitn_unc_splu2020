@@ -157,7 +157,6 @@ if __name__ == '__main__':
         visual_feat_file=data_paths[args.img_feat]['image_features'],
         visual_feat_mapping_file=data_paths[exp_config['img_feat']]['img2id'],
         visual_feat_crop_file=data_paths[args.img_feat]['crop_features'],
-        visual_feat_crop_mapping_file=data_paths[exp_config['img_feat']]['crop2id'],
         max_src_length=dataset_config['max_src_length'],
         hdf5_visual_feat='train_img_features',
         hdf5_crop_feat='crop_features',
@@ -184,7 +183,7 @@ if __name__ == '__main__':
         new_oracle_data=dataset_config['new_oracle_data'],
         successful_only=dataset_config['successful_only'],
         load_crops=True,
-        only_location=False,
+        only_location=False
     )
 
     print("Initializing the optimizer...")
@@ -231,7 +230,6 @@ if __name__ == '__main__':
                 # Forward pass
                 pred_answer = model(
                     Variable(crop_features),
-                    sample["history_raw"],
                     sample['FasterRCNN']['features'],
                     sample['FasterRCNN']['boxes'],
                     sample["target_bbox"],
