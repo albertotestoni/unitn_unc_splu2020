@@ -49,17 +49,21 @@ class LXMERTOracleInputTarget(nn.Module):
             lxrt_encoder_args,
             max_seq_length=200
         )
+
         if not lxrt_encoder_args.from_scratch:
             print("Loading LXMERT pretrained model...")
             self.lxrt_encoder.load(lxrt_encoder_args.model_path)
         else:
             print("Initializing LXMERT model from scratch...")
 
-    def forward(self, crop_features, history_raw, fasterrcnn_features, fasterrcnn_boxes, target_bbox):
-        fasterrcnn_features[:, -1] = crop_features
-        fasterrcnn_boxes[:, -1] = target_bbox
+    def forward(self, crop_features, fasterrcnn_features, fasterrcnn_boxes, target_bbox, 
+                input_ids, input_mask, segment_ids):
 
-        out = self.lxrt_encoder(history_raw, (fasterrcnn_features, fasterrcnn_boxes))
+        fasterrcnn_features[:, -1] = crop_features
+        fasterrcnn_boxes[:, -1]  = target_bbox
+
+        # Pass the new inputs as a tuple to the LXRTEncoder
+        out = self.lxrt_encoder((input_ids, input_mask, segment_ids), (fasterrcnn_features, fasterrcnn_boxes))
 
         if self.inputs_config['question']:
             mlp_in = out

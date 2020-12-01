@@ -9,19 +9,32 @@ import h5py
 import numpy as np
 from nltk.tokenize import TweetTokenizer
 from torch.utils.data import Dataset
+
 from utils.image_utils import get_spatial_feat
+
+from transformers import BertTokenizer
+from lxmert.src.lxrt.entry import convert_sents_to_features
 
 
 class LXMERTOracleDataset(Dataset):
-    def __init__(self, data_dir, data_file, split, visual_feat_file, visual_feat_mapping_file,
-                 visual_feat_crop_file, max_src_length, hdf5_visual_feat,
-                 hdf5_crop_feat,
-                 imgid2fasterRCNNfeatures,
-                 history = False, new_oracle_data=False, successful_only=True, min_occ=3, load_crops=False, bert_tok=False, only_location=False):
+    def __init__(self, data_dir, data_file, split, visual_feat_file,
+                 visual_feat_mapping_file, visual_feat_crop_file,
+                 max_src_length,
+                 hdf5_visual_feat, hdf5_crop_feat, imgid2fasterRCNNfeatures,
+                 history = False, new_oracle_data=False, successful_only=True,
+                 min_occ=3, load_crops=False, bert_tok=False,
+                 only_location=False):
 
         self.data_dir = data_dir
         self.split = split
         self.history = history
+
+        # Using the bert tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(
+            "bert-base-uncased",
+            do_lower_case=True
+        )
+
         # where to save/load preprocessed data
         if self.history:
             self.data_file_name = 'oracle_' + split + '_history_data.json'
@@ -100,7 +113,6 @@ class LXMERTOracleDataset(Dataset):
         visual_feat_id = self.visual_feat_mapping_file[self.oracle_data[idx]['image_file']]
         visual_feat = self.vf[visual_feat_id]
         if self.load_crops:
-            # crop_feat_id = self.visual_feat_crop_mapping_file[self.oracle_data[idx]['game_id']+'.jpg']
             crop_feat_id = self.visual_feat_crop_mapping_file[self.oracle_data[idx]['game_id']]
             crop_feat = self.cf[crop_feat_id]
         else:
@@ -119,8 +131,25 @@ class LXMERTOracleDataset(Dataset):
                 "unnormalized_target_bbox": np.asarray(self.oracle_data[idx]["target_bbox"], dtype=np.float32)
                 }
 
-        res_dict['FasterRCNN'] = dict()
+        # Extract sentence features so DataParallel can split into batches
+        # properly
+        # TODO make the second parameter of convert_sents_to_features not
+        # hardcoded
+        train_features = convert_sents_to_features([res_dict['history_raw']],
+                200, self.tokenizer)
+        # As we're only processing one sentence at a time, we have to take the
+        # element 0 of the train_features array
+        input_ids = train_features[0].input_ids
+        input_mask = train_features[0].input_mask
+        segment_ids = train_features[0].segment_ids
 
+        # Return the sentences tokenized
+        res_dict['train_features'] = dict()
+        res_dict['train_features']['input_ids'] = np.asarray(input_ids)
+        res_dict['train_features']['input_mask'] = np.asarray(input_mask)
+        res_dict['train_features']['segment_ids'] = np.asarray(segment_ids)
+
+        res_dict['FasterRCNN'] = dict()
         res_dict['FasterRCNN']['features'] = self.oracle_data[idx]['FasterRCNN']['features']
         res_dict['FasterRCNN']['unnormalized_boxes'] = self.oracle_data[idx]['FasterRCNN']['boxes']
 
