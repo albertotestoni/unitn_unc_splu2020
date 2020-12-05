@@ -145,9 +145,9 @@ class LXMERTOracleDataset(Dataset):
 
         # Return the sentences tokenized
         res_dict['train_features'] = dict()
-        res_dict['train_features']['input_ids'] = np.asarray(input_ids)
-        res_dict['train_features']['input_mask'] = np.asarray(input_mask)
-        res_dict['train_features']['segment_ids'] = np.asarray(segment_ids)
+        res_dict['train_features']['input_ids'] = np.asarray(input_ids).squeeze()
+        res_dict['train_features']['input_mask'] = np.asarray(input_mask).squeeze()
+        res_dict['train_features']['segment_ids'] = np.asarray(segment_ids).squeeze()
 
         res_dict['FasterRCNN'] = dict()
         res_dict['FasterRCNN']['features'] = self.oracle_data[idx]['FasterRCNN']['features']
